@@ -53,7 +53,7 @@ models/
 
 ## 模型结构图
 
-```Mermaid
+```mermaid
 flowchart LR
     %% ================= 输入 =================
     Input["输入"] --> B1["模块 1"]
