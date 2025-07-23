@@ -69,15 +69,33 @@ class MSCBlock(nn.Module):
         
         # 原型反馈
         if prototype_feedback is not None:
-            # 上采样原型到当前特征尺寸
-            proto_resized = F.interpolate(
-                prototype_feedback, 
-                size=features.shape[2:], 
-                mode='bilinear', 
-                align_corners=False
-            )
-            proto_att = self.prototype_proj(proto_resized)
-            features = features + proto_att
+            if isinstance(prototype_feedback, dict):
+                proto_list = []
+                for key in ['f_fg', 'f_bg', 'f_uc']:
+                    if key in prototype_feedback:
+                        t = prototype_feedback[key]
+                        t = F.interpolate(
+                            t,
+                            size=features.shape[2:],
+                            mode='bilinear',
+                            align_corners=False
+                        )
+                        proto_list.append(t)
+                if proto_list:
+                    proto_resized = torch.cat(proto_list, dim=1)
+                else:
+                    proto_resized = None
+            else:
+                proto_resized = F.interpolate(
+                    prototype_feedback,
+                    size=features.shape[2:],
+                    mode='bilinear',
+                    align_corners=False
+                )
+
+            if proto_resized is not None:
+                proto_att = self.prototype_proj(proto_resized)
+                features = features + proto_att
         
         # 损失反馈
         if loss_feedback is not None:

@@ -79,6 +79,7 @@ class UncertaintyRectifierModule(nn.Module):
         entropy = self.compute_entropy(logits)
         
         # 3. 生成错误掩码和注意力
+        error_mask = None
         if training and ground_truth is not None:
             # 训练时：使用真值生成错误掩码
             error_mask = self.generate_error_mask(predicted_mask, ground_truth)
