@@ -54,6 +54,12 @@ class MedicalImageDataset(Dataset):
             transformed = self.transforms(image=image, mask=mask)
             image = transformed['image']
             mask = transformed['mask']
+        else:
+            # 当未指定变换时，将numpy数组转换为张量
+            if len(mask.shape) == 2:
+                mask = np.expand_dims(mask, 0)
+            image = torch.from_numpy(image).permute(2, 0, 1)
+            mask = torch.from_numpy(mask)
         
         # 确保掩码是正确的格式
         if len(mask.shape) == 3:
@@ -61,7 +67,7 @@ class MedicalImageDataset(Dataset):
         elif len(mask.shape) == 2:
             mask = mask.unsqueeze(0)  # 添加通道维度
         
-        return image, mask.float()
+        return image.float(), mask.float()
     
     def get_mask_name(self, image_name):
         """根据图像名获取对应的掩码名"""
