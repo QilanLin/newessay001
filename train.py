@@ -15,8 +15,12 @@ class MedicalSegTrainer:
         self.config = self.load_config(config_path)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 创建模型
-        self.model = create_enhanced_medical_seg_net(self.config['model'])
+        # 创建模型，同时合并自定义损失权重
+        model_config = {
+            **self.config['model'],
+            'loss_weights': self.config.get('loss_weights')
+        }
+        self.model = create_enhanced_medical_seg_net(model_config)
         self.model.to(self.device)
         
         # 创建优化器
