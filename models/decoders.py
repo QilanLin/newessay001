@@ -158,13 +158,12 @@ class MaskFusion(nn.Module):
         self.fusion_conv = nn.Conv2d(num_decoders, 1, 1)
         self.sigmoid = nn.Sigmoid()
         
-    def forward(self, decoder_outputs):
+    def forward(self, decoder_outputs, target_size):
         """
         Args:
             decoder_outputs: 包含四个解码器输出的列表
         """
         # 确保所有输出都是相同尺寸（1×）
-        target_size = decoder_outputs[0].shape[2:]
         aligned_outputs = []
         
         for output in decoder_outputs:
@@ -201,10 +200,11 @@ class MultiResolutionDecoders(nn.Module):
         # 掩码融合
         self.mask_fusion = MaskFusion(num_decoders=4)
         
-    def forward(self, msc_features):
+    def forward(self, msc_features, input_size):
         """
         Args:
             msc_features: MSCFE输出的特征字典
+            input_size: 输入图像的(H, W)尺寸，用于将所有解码器输出对齐到1×
         """
         # 各解码器处理
         ds_out = self.decoder_s(msc_features['msc1'])    # 来自MSC1
@@ -212,8 +212,13 @@ class MultiResolutionDecoders(nn.Module):
         dl3_out = self.decoder_l3(msc_features['msc3'])  # 来自MSC3
         dl4_out = self.decoder_l4(msc_features['msc4'])  # 来自MSC4
         
-        # 掩码融合
-        mask_prediction = self.mask_fusion([ds_out, dm_out, dl3_out, dl4_out])
+        # 掩码融合到输入尺寸
+        mask_prediction = self.mask_fusion([
+            ds_out,
+            dm_out,
+            dl3_out,
+            dl4_out
+        ], target_size=input_size)
         
         return {
             'ds_out': ds_out,

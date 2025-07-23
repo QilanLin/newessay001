@@ -62,8 +62,8 @@ class EncoderBackbone(nn.Module):
         # Module 3: stride=2 (累计stride=8)  
         self.module3 = EncoderModule(base_channels * 2, base_channels * 4, stride=2)
         
-        # Module 4: stride=2 (累计stride=16)
-        self.module4 = EncoderModule(base_channels * 4, base_channels * 8, stride=2)
+        # Module 4: stride=1 (保持stride=16)
+        self.module4 = EncoderModule(base_channels * 4, base_channels * 8, stride=1)
         
         self.base_channels = base_channels
         
