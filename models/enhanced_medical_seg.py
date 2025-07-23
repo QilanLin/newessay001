@@ -61,9 +61,12 @@ class EnhancedMedicalSegNet(nn.Module):
         
         # 7. 辅助头
         self.auxiliary_head = AuxiliaryHead(prototype_dim, num_classes=3)
-        
+
         # 损失函数
         self.bce_loss = nn.BCELoss()
+
+        # 存储上一轮反馈的容器
+        self.previous_feedback = None
         
     def forward(self, x, ground_truth=None, training=True):
         """
@@ -86,14 +89,14 @@ class EnhancedMedicalSegNet(nn.Module):
         # 3. 特征解耦生成原型
         prototypes = self.feature_decoupling(encoder_features['b4'])
         
-        # 初始化反馈为None（第一次前向传播）
-        feedback = None
+        # 使用上一轮的反馈信息
+        feedback = self.previous_feedback
         
-        # 4. MSCFE处理（带原型反馈）
+        # 4. MSCFE处理（带原型和损失反馈）
         msc_features = self.mscfe(encoder_features, cfpn_features, feedback)
         
         # 5. 多分辨率解码
-        decoder_outputs = self.decoders(msc_features)
+        decoder_outputs = self.decoders(msc_features, input_size=x.shape[2:])
         predicted_mask = decoder_outputs['mask']
         
         # 6. URM矫正不确定性特征
@@ -109,14 +112,17 @@ class EnhancedMedicalSegNet(nn.Module):
         
         # 7. 辅助头处理
         aux_outputs = self.auxiliary_head(prototypes)
-        
+
         if training:
-            return self._compute_losses(
-                predicted_mask, 
-                aux_outputs, 
+            loss_dict = self._compute_losses(
+                predicted_mask,
+                aux_outputs,
                 ground_truth
             )
+            self._update_feedback(prototypes, loss_dict)
+            return loss_dict
         else:
+            self._update_feedback(prototypes, None)
             return self._prepare_inference_outputs(
                 predicted_mask,
                 aux_outputs,
@@ -160,6 +166,29 @@ class EnhancedMedicalSegNet(nn.Module):
             'entropy': urm_outputs['entropy'],
             'attention_map': urm_outputs['attention_map'],
             'decoder_outputs': decoder_outputs
+        }
+
+    def _update_feedback(self, prototypes, loss_dict):
+        """更新下一轮MSCFE所需的反馈"""
+        proto_feedback = {
+            'f_fg': prototypes['f_fg'].detach(),
+            'f_bg': prototypes['f_bg'].detach(),
+            'f_uc': prototypes['f_uc_corrected'].detach()
+        }
+
+        if loss_dict is not None:
+            b = proto_feedback['f_fg'].shape[0]
+            loss_mask = loss_dict['loss_mask'].detach().view(b, 1, 1, 1)
+            loss_fg = loss_dict['loss_fg'].detach().view(b, 1, 1, 1)
+            loss_bg = loss_dict['loss_bg'].detach().view(b, 1, 1, 1)
+            loss_compl = loss_dict['loss_compl'].detach().view(b, 1, 1, 1)
+            losses = torch.cat([loss_fg, loss_bg, loss_compl, loss_mask], dim=1)
+        else:
+            losses = None
+
+        self.previous_feedback = {
+            'prototypes': proto_feedback,
+            'losses': losses
         }
     
     def enable_feedback_training(self):
