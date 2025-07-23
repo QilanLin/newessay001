@@ -206,8 +206,8 @@ def main():
     trainer = MedicalSegTrainer('configs/config.yaml')
     
     # 这里需要实现您的数据加载器
-    # train_dataloader = create_dataloader(...)
-    # val_dataloader = create_dataloader(...)
+    # train_dataloader = create_dataloaders(...)
+    # val_dataloader = create_dataloaders(...)
     
     print("请实现数据加载器后开始训练")
     print("训练器已准备就绪，模型架构如下：")
